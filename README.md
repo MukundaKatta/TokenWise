@@ -9,6 +9,25 @@
 
 ---
 
+## Why TokenWise
+
+Token cost and context-window limits show up everywhere in modern AI systems, but most teams still handle them with scattered scripts, rough estimates, and provider-specific logic.
+
+TokenWise is designed to make those concerns easier to manage in one place:
+
+- estimate token usage before a request goes out
+- compare cost across model families
+- compress prompts when budgets are tight
+- track spend over time instead of treating cost as an afterthought
+
+## What It Covers
+
+- token counting heuristics across major model families
+- prompt optimization and budget-aware trimming
+- cost estimation for input and output tokens
+- usage tracking with alerts and reporting
+- batch prompt cleanup workflows
+
 ## Architecture
 
 ```mermaid
@@ -150,6 +169,13 @@ print(f"Saved {summary['total_tokens_saved']} tokens across {summary['prompt_cou
 - **CLI** — Built-in command-line interface powered by Typer and Rich
 - **Model Comparison** — Compare token counts and costs across models side-by-side
 
+## Who This Is For
+
+- developers building AI products with real token budgets
+- teams comparing providers and model cost tradeoffs
+- prompt engineers trying to reduce waste without losing clarity
+- anyone who wants lightweight token tooling without a larger framework
+
 ## Configuration
 
 Set defaults via environment variables or `.env` file:
@@ -171,6 +197,17 @@ make lint      # Lint with ruff
 make format    # Auto-format code
 make run       # Show CLI help
 ```
+
+## Project Direction
+
+TokenWise is best when it stays practical: easy to script, easy to embed in existing apps, and focused on the real questions developers ask when shipping LLM-powered systems.
+
+Future improvements can build on that foundation with:
+
+- better model-pricing refresh workflows
+- more benchmark-style prompt comparisons
+- richer reporting and budget policy options
+- stronger integration patterns for production AI pipelines
 
 ## License
 
