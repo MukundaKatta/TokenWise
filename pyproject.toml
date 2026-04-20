@@ -49,6 +49,9 @@ Issues = "https://github.com/MukundaKatta/TokenWise/issues"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+tokenwise = ["data/*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]

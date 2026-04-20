@@ -2,30 +2,27 @@
 
 from __future__ import annotations
 
+import json
 import os
+from functools import lru_cache
+from importlib.resources import files
 from typing import Optional
 
 from pydantic import BaseModel, Field
 
 
-# Per-token pricing in USD (per 1K tokens)
+@lru_cache(maxsize=1)
+def load_pricing_catalog() -> dict:
+    """Load the versioned pricing catalog from package data."""
+    catalog_path = files("tokenwise").joinpath("data/model_pricing.v1.json")
+    return json.loads(catalog_path.read_text(encoding="utf-8"))
+
+
+PRICING_CATALOG = load_pricing_catalog()
+PRICING_VERSION = PRICING_CATALOG["version"]
 MODEL_PRICING: dict[str, dict[str, float]] = {
-    "gpt-4": {"input": 0.03, "output": 0.06},
-    "gpt-4-turbo": {"input": 0.01, "output": 0.03},
-    "gpt-4o": {"input": 0.005, "output": 0.015},
-    "gpt-3.5-turbo": {"input": 0.0005, "output": 0.0015},
-    "claude-3-opus": {"input": 0.015, "output": 0.075},
-    "claude-3-sonnet": {"input": 0.003, "output": 0.015},
-    "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
-    "claude-3.5-sonnet": {"input": 0.003, "output": 0.015},
-    "claude-4-opus": {"input": 0.015, "output": 0.075},
-    "claude-4-sonnet": {"input": 0.003, "output": 0.015},
-    "gemini-1.5-pro": {"input": 0.00125, "output": 0.005},
-    "gemini-1.5-flash": {"input": 0.000075, "output": 0.0003},
-    "llama-3-70b": {"input": 0.00059, "output": 0.00079},
-    "llama-3-8b": {"input": 0.00005, "output": 0.00008},
-    "mistral-large": {"input": 0.004, "output": 0.012},
-    "mistral-small": {"input": 0.001, "output": 0.003},
+    model: {"input": details["input"], "output": details["output"]}
+    for model, details in PRICING_CATALOG["models"].items()
 }
 
 # Characters-per-token ratio heuristics by model family
@@ -38,24 +35,9 @@ TOKENIZER_RATIOS: dict[str, float] = {
     "default": 3.7,
 }
 
-# Default context window sizes
 MODEL_CONTEXT_WINDOWS: dict[str, int] = {
-    "gpt-4": 8192,
-    "gpt-4-turbo": 128000,
-    "gpt-4o": 128000,
-    "gpt-3.5-turbo": 16385,
-    "claude-3-opus": 200000,
-    "claude-3-sonnet": 200000,
-    "claude-3-haiku": 200000,
-    "claude-3.5-sonnet": 200000,
-    "claude-4-opus": 200000,
-    "claude-4-sonnet": 200000,
-    "gemini-1.5-pro": 1000000,
-    "gemini-1.5-flash": 1000000,
-    "llama-3-70b": 8192,
-    "llama-3-8b": 8192,
-    "mistral-large": 32000,
-    "mistral-small": 32000,
+    model: details["context_window"]
+    for model, details in PRICING_CATALOG["models"].items()
 }
 
 # Default budget settings
@@ -84,6 +66,7 @@ class TokenWiseConfig(BaseModel):
     monthly_budget_usd: float = Field(default=DEFAULT_BUDGET["monthly_limit_usd"])
     alert_threshold_pct: int = Field(default=DEFAULT_BUDGET["alert_threshold_pct"])
     custom_pricing: Optional[dict[str, dict[str, float]]] = None
+    pricing_version: str = Field(default=PRICING_VERSION)
 
     def get_pricing(self, model: str) -> dict[str, float]:
         """Return pricing dict for a model, checking custom overrides first."""
@@ -101,3 +84,11 @@ class TokenWiseConfig(BaseModel):
             if family in model.lower():
                 return ratio
         return TOKENIZER_RATIOS["default"]
+
+    def get_context_window(self, model: str) -> int:
+        """Return the context window for a model."""
+        if model in MODEL_CONTEXT_WINDOWS:
+            return MODEL_CONTEXT_WINDOWS[model]
+        raise ValueError(
+            f"Unknown model '{model}'. Available: {', '.join(MODEL_CONTEXT_WINDOWS.keys())}"
+        )
