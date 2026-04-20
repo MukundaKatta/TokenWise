@@ -103,6 +103,22 @@ tracker.track(
 print(f"Total spend: ${tracker.total_cost():.6f}")
 ```
 
+### Multi-step Budget Breakdown
+
+```python
+from tokenwise import BudgetTracker
+
+tracker = BudgetTracker()
+tracker.add_step("draft", request="Write a landing page headline", response="Fast AI workflows for teams.")
+tracker.add_step("review", request="Critique the headline", response="Shorten the second clause.")
+
+report = tracker.get_report(warning_threshold_usd=0.01)
+print(report.total_cost)
+print(report.pricing_version)
+for step in report.steps:
+    print(step.name, step.total_tokens, step.total_cost)
+```
+
 ### CLI
 
 ```bash
@@ -138,6 +154,18 @@ unique = batch.deduplicate_prompts(prompts)
 summary = batch.batch_summary(unique)
 print(f"Saved {summary['total_tokens_saved']} tokens across {summary['prompt_count']} prompts")
 ```
+
+## Pricing Data
+
+Model pricing now lives in a versioned package data file at `src/tokenwise/data/model_pricing.v1.json`.
+
+That gives TokenWise a safer update workflow:
+
+- pricing changes are separated from estimator logic
+- the catalog carries an explicit version
+- historical reports can point back to the pricing version used at the time
+
+To update pricing, edit the JSON catalog, keep the schema consistent, and run the test suite before publishing.
 
 ## Pricing Table
 

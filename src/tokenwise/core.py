@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from tokenwise.config import (
     MODEL_CONTEXT_WINDOWS,
     MODEL_PRICING,
+    PRICING_VERSION,
     TokenWiseConfig,
 )
 from tokenwise.utils import (
@@ -34,6 +35,34 @@ class UsageRecord(BaseModel):
     total_tokens: int
     model: str
     estimated_cost: float
+    pricing_version: str
+
+
+class BudgetStep(BaseModel):
+    """One step in a multi-step budget workflow."""
+
+    name: str
+    model: str
+    request_tokens: int
+    response_tokens: int
+    total_tokens: int
+    input_cost: float
+    output_cost: float
+    total_cost: float
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class BudgetReport(BaseModel):
+    """Aggregate report for a multi-step budget workflow."""
+
+    pricing_version: str
+    total_steps: int
+    total_tokens: int
+    total_cost: float
+    warning_threshold_usd: float | None = None
+    warning_triggered: bool = False
+    by_model: dict[str, dict[str, float]]
+    steps: list[BudgetStep]
 
 
 class BudgetAlert(BaseModel):
@@ -253,6 +282,7 @@ class UsageTracker:
             total_tokens=req_tokens + res_tokens,
             model=model,
             estimated_cost=round(input_cost + output_cost, 8),
+            pricing_version=self.config.pricing_version,
         )
         self._records.append(record)
         return record
@@ -300,6 +330,7 @@ class UsageTracker:
             "total_requests": len(self._records),
             "total_tokens": self.total_tokens(),
             "estimated_total_cost": self.total_cost(),
+            "pricing_version": self.config.pricing_version,
             "by_model": by_model,
         }
 
@@ -368,3 +399,70 @@ class BatchOptimizer:
                 seen.add(normalized)
                 unique.append(p)
         return unique
+
+
+class BudgetTracker:
+    """Track token and cost breakdowns across multi-step tasks."""
+
+    def __init__(self, config: Optional[TokenWiseConfig] = None) -> None:
+        self.config = config or TokenWiseConfig()
+        self._counter = TokenCounter(self.config)
+        self._estimator = CostEstimator(self.config)
+        self._steps: list[BudgetStep] = []
+
+    def add_step(
+        self,
+        name: str,
+        request: str,
+        response: str = "",
+        model: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> BudgetStep:
+        """Add one step to the budget report."""
+        model = model or self.config.default_model
+        request_tokens = self._counter.count(request, model)
+        response_tokens = self._counter.count(response, model) if response else 0
+        input_cost = self._estimator.estimate(request_tokens, model, "input")
+        output_cost = self._estimator.estimate(response_tokens, model, "output")
+        step = BudgetStep(
+            name=name,
+            model=model,
+            request_tokens=request_tokens,
+            response_tokens=response_tokens,
+            total_tokens=request_tokens + response_tokens,
+            input_cost=input_cost,
+            output_cost=output_cost,
+            total_cost=round(input_cost + output_cost, 8),
+            metadata=metadata or {},
+        )
+        self._steps.append(step)
+        return step
+
+    def get_report(self, warning_threshold_usd: float | None = None) -> BudgetReport:
+        """Return the full workflow budget report."""
+        by_model: dict[str, dict[str, float]] = {}
+        for step in self._steps:
+            if step.model not in by_model:
+                by_model[step.model] = {"steps": 0.0, "tokens": 0.0, "cost": 0.0}
+            by_model[step.model]["steps"] += 1
+            by_model[step.model]["tokens"] += step.total_tokens
+            by_model[step.model]["cost"] += step.total_cost
+
+        total_cost = round(sum(step.total_cost for step in self._steps), 8)
+        total_tokens = sum(step.total_tokens for step in self._steps)
+        return BudgetReport(
+            pricing_version=self.config.pricing_version,
+            total_steps=len(self._steps),
+            total_tokens=total_tokens,
+            total_cost=total_cost,
+            warning_threshold_usd=warning_threshold_usd,
+            warning_triggered=(
+                warning_threshold_usd is not None and total_cost >= warning_threshold_usd
+            ),
+            by_model=by_model,
+            steps=list(self._steps),
+        )
+
+    def reset(self) -> None:
+        """Clear tracked steps."""
+        self._steps.clear()

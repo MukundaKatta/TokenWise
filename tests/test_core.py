@@ -6,12 +6,13 @@ import pytest
 
 from tokenwise.core import (
     BatchOptimizer,
+    BudgetTracker,
     CostEstimator,
     TokenCounter,
     TokenOptimizer,
     UsageTracker,
 )
-from tokenwise.config import TokenWiseConfig
+from tokenwise.config import PRICING_VERSION, TokenWiseConfig, load_pricing_catalog
 
 
 class TestTokenCounter:
@@ -95,6 +96,9 @@ class TestCostEstimator:
         costs = [info["cost"] for info in result.values()]
         assert costs == sorted(costs)
 
+    def test_pricing_version_exposed_from_catalog(self) -> None:
+        assert PRICING_VERSION == load_pricing_catalog()["version"]
+
 
 class TestUsageTracker:
     """Tests for usage tracking."""
@@ -108,6 +112,7 @@ class TestUsageTracker:
         assert record.request_tokens > 0
         assert record.response_tokens > 0
         assert record.total_tokens == record.request_tokens + record.response_tokens
+        assert record.pricing_version == PRICING_VERSION
 
     def test_report_aggregates_correctly(self) -> None:
         tracker = UsageTracker()
@@ -118,6 +123,7 @@ class TestUsageTracker:
         assert report["total_requests"] == 2
         assert report["total_tokens"] > 0
         assert report["estimated_total_cost"] > 0
+        assert report["pricing_version"] == PRICING_VERSION
 
     def test_reset_clears_log(self) -> None:
         tracker = UsageTracker()
@@ -197,3 +203,21 @@ class TestBatchOptimizer:
         prompts = ["Hello", "hello", "World", "Hello"]
         unique = batch.deduplicate_prompts(prompts)
         assert len(unique) == 2
+
+
+class TestBudgetTracker:
+    """Tests for multi-step budget reporting."""
+
+    def test_budget_report_breaks_costs_down_by_step(self) -> None:
+        tracker = BudgetTracker()
+        tracker.add_step("draft", request="Write a summary", response="Here is a draft", model="gpt-4o")
+        tracker.add_step("review", request="Critique the draft", response="Needs more detail", model="gpt-4o")
+
+        report = tracker.get_report(warning_threshold_usd=0.00000001)
+
+        assert report.total_steps == 2
+        assert report.total_tokens > 0
+        assert report.total_cost > 0
+        assert report.warning_triggered is True
+        assert report.pricing_version == PRICING_VERSION
+        assert len(report.steps) == 2
