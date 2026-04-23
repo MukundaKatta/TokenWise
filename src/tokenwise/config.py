@@ -6,6 +6,7 @@ import json
 import os
 from functools import lru_cache
 from importlib.resources import files
+from typing import Any, cast
 
 from pydantic import BaseModel, Field
 
@@ -14,7 +15,7 @@ from pydantic import BaseModel, Field
 def load_pricing_catalog() -> dict:
     """Load the versioned pricing catalog from package data."""
     catalog_path = files("tokenwise").joinpath("data/model_pricing.v1.json")
-    return json.loads(catalog_path.read_text(encoding="utf-8"))
+    return cast(dict[str, Any], json.loads(catalog_path.read_text(encoding="utf-8")))
 
 
 PRICING_CATALOG = load_pricing_catalog()
@@ -63,7 +64,7 @@ class TokenWiseConfig(BaseModel):
     )
     daily_budget_usd: float = Field(default=DEFAULT_BUDGET["daily_limit_usd"])
     monthly_budget_usd: float = Field(default=DEFAULT_BUDGET["monthly_limit_usd"])
-    alert_threshold_pct: int = Field(default=DEFAULT_BUDGET["alert_threshold_pct"])
+    alert_threshold_pct: int = Field(default=int(DEFAULT_BUDGET["alert_threshold_pct"]))
     custom_pricing: dict[str, dict[str, float]] | None = None
     pricing_version: str = Field(default=PRICING_VERSION)
 
