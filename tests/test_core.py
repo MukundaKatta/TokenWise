@@ -1,9 +1,11 @@
-"""Tests for tokenwise.core — TokenCounter, CostEstimator, UsageTracker, TokenOptimizer, BatchOptimizer."""
+"""Tests for tokenwise.core — TokenCounter, CostEstimator, UsageTracker, TokenOptimizer,
+BatchOptimizer."""
 
 from __future__ import annotations
 
 import pytest
 
+from tokenwise.config import PRICING_VERSION, TokenWiseConfig, load_pricing_catalog
 from tokenwise.core import (
     BatchOptimizer,
     BudgetTracker,
@@ -12,7 +14,6 @@ from tokenwise.core import (
     TokenOptimizer,
     UsageTracker,
 )
-from tokenwise.config import PRICING_VERSION, TokenWiseConfig, load_pricing_catalog
 
 
 class TestTokenCounter:
@@ -210,8 +211,12 @@ class TestBudgetTracker:
 
     def test_budget_report_breaks_costs_down_by_step(self) -> None:
         tracker = BudgetTracker()
-        tracker.add_step("draft", request="Write a summary", response="Here is a draft", model="gpt-4o")
-        tracker.add_step("review", request="Critique the draft", response="Needs more detail", model="gpt-4o")
+        tracker.add_step(
+            "draft", request="Write a summary", response="Here is a draft", model="gpt-4o"
+        )
+        tracker.add_step(
+            "review", request="Critique the draft", response="Needs more detail", model="gpt-4o"
+        )
 
         report = tracker.get_report(warning_threshold_usd=0.00000001)
 
