@@ -314,6 +314,20 @@ class UsageTracker:
                 current_spend=spend, limit=self.config.daily_budget_usd,
                 message=f"Approaching daily budget: ${spend:.4f} / ${self.config.daily_budget_usd:.2f}",
             ))
+
+        # Monthly budget check
+        if spend >= self.config.monthly_budget_usd:
+            alerts.append(BudgetAlert(
+                level="exceeded", budget_type="monthly",
+                current_spend=spend, limit=self.config.monthly_budget_usd,
+                message=f"Monthly budget exceeded: ${spend:.4f} / ${self.config.monthly_budget_usd:.2f}",
+            ))
+        elif spend >= self.config.monthly_budget_usd * threshold:
+            alerts.append(BudgetAlert(
+                level="warning", budget_type="monthly",
+                current_spend=spend, limit=self.config.monthly_budget_usd,
+                message=f"Approaching monthly budget: ${spend:.4f} / ${self.config.monthly_budget_usd:.2f}",
+            ))
         return alerts
 
     def get_report(self) -> dict[str, Any]:
