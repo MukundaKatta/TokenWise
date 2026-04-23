@@ -6,7 +6,6 @@ import json
 import os
 from functools import lru_cache
 from importlib.resources import files
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -65,7 +64,7 @@ class TokenWiseConfig(BaseModel):
     daily_budget_usd: float = Field(default=DEFAULT_BUDGET["daily_limit_usd"])
     monthly_budget_usd: float = Field(default=DEFAULT_BUDGET["monthly_limit_usd"])
     alert_threshold_pct: int = Field(default=DEFAULT_BUDGET["alert_threshold_pct"])
-    custom_pricing: Optional[dict[str, dict[str, float]]] = None
+    custom_pricing: dict[str, dict[str, float]] | None = None
     pricing_version: str = Field(default=PRICING_VERSION)
 
     def get_pricing(self, model: str) -> dict[str, float]:
