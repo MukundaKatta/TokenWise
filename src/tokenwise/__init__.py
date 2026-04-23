@@ -2,6 +2,7 @@
 
 __version__ = "0.1.0"
 
+from tokenwise.config import PRICING_VERSION, TokenWiseConfig
 from tokenwise.core import (
     BatchOptimizer,
     BudgetTracker,
@@ -10,7 +11,6 @@ from tokenwise.core import (
     TokenOptimizer,
     UsageTracker,
 )
-from tokenwise.config import PRICING_VERSION, TokenWiseConfig
 
 __all__ = [
     "TokenCounter",
