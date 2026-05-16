@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 
 @lru_cache(maxsize=1)
-def load_pricing_catalog() -> dict:
+def load_pricing_catalog() -> dict[str, Any]:
     """Load the versioned pricing catalog from package data."""
     catalog_path = files("tokenwise").joinpath("data/model_pricing.v1.json")
     return cast(dict[str, Any], json.loads(catalog_path.read_text(encoding="utf-8")))
